@@ -160,6 +160,7 @@ pub struct RollingFileAppender {
     append: bool,
     encoder: Box<dyn Encode>,
     policy: Box<dyn policy::Policy>,
+    log_file_header: Vec<String>,
 }
 
 impl Append for RollingFileAppender {
@@ -194,6 +195,7 @@ impl RollingFileAppender {
         RollingFileAppenderBuilder {
             append: true,
             encoder: None,
+            log_file_header: vec![],
         }
     }
 
@@ -225,6 +227,7 @@ impl RollingFileAppender {
 pub struct RollingFileAppenderBuilder {
     append: bool,
     encoder: Option<Box<dyn Encode>>,
+    log_file_header: Vec<String>,
 }
 
 impl RollingFileAppenderBuilder {
@@ -266,6 +269,7 @@ impl RollingFileAppenderBuilder {
                 .encoder
                 .unwrap_or_else(|| Box::new(PatternEncoder::default())),
             policy,
+            log_file_header: self.log_file_header,
         };
 
         if let Some(parent) = appender.path.parent() {
@@ -273,9 +277,20 @@ impl RollingFileAppenderBuilder {
         }
 
         // open the log file immediately
+        // the main idea here is as soon as the log opens we get the lock
+        // and write our log header to the file. It's assumed the
+        // lock will allow us to do a fs::write() before log::*() are
+        // written.  Its also assumed get_writer() is initializing a
+        // new file.
+        // TODO cleanup later
         appender.get_writer(&mut appender.writer.lock())?;
 
+        let a_path = &appender.path;
+        let lfh = appender.log_file_header[0].to_string().clone();
+        fs::write(a_path, lfh)?;
+
         Ok(appender)
+
     }
 }
 
@@ -409,6 +424,8 @@ appenders:
 
     #[test]
     fn append() {
+        let log_file_header: Vec<String> = vec!["Built Ford Tough".to_string(), "1923".to_string()];
+
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("append.log");
         RollingFileAppender::builder()
