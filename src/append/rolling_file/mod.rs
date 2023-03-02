@@ -191,11 +191,11 @@ impl Append for RollingFileAppender {
 
 impl RollingFileAppender {
     /// Creates a new `RollingFileAppenderBuilder`.
-    pub fn builder() -> RollingFileAppenderBuilder {
+    pub fn builder(fh: Vec<String>) -> RollingFileAppenderBuilder {
         RollingFileAppenderBuilder {
             append: true,
             encoder: None,
-            log_file_header: vec![],
+            log_file_header: fh, 
         }
     }
 
@@ -346,7 +346,7 @@ impl Deserialize for RollingFileAppenderDeserializer {
         config: RollingFileAppenderConfig,
         deserializers: &Deserializers,
     ) -> anyhow::Result<Box<dyn Append>> {
-        let mut builder = RollingFileAppender::builder();
+        let mut builder = RollingFileAppender::builder(vec![]);
         if let Some(append) = config.append {
             builder = builder.append(append);
         }
@@ -424,7 +424,7 @@ appenders:
 
     #[test]
     fn append() {
-        let log_file_header: Vec<String> = vec!["Built Ford Tough".to_string(), "1923".to_string()];
+        let log_file_header: Vec<String> = vec!["Built Ford Tough\n".to_string(), "1923".to_string()];
 
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("append.log");
