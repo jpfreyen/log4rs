@@ -161,6 +161,7 @@ pub struct RollingFileAppender {
     encoder: Box<dyn Encode>,
     policy: Box<dyn policy::Policy>,
     log_file_header: Vec<String>,
+
 }
 
 impl Append for RollingFileAppender {
@@ -184,6 +185,7 @@ impl Append for RollingFileAppender {
         // TODO(eas): Idea: make this optionally return a future, and if so, we initialize a queue for
         // data that comes in while we are processing the file rotation.
         self.policy.process(&mut file)
+
     }
 
     fn flush(&self) {}
@@ -201,11 +203,13 @@ impl RollingFileAppender {
 
     fn get_writer<'a>(&self, writer: &'a mut Option<LogWriter>) -> io::Result<&'a mut LogWriter> {
         if writer.is_none() {
+            // TODO, HACK: trial first, clean up next
+            fs::write(&self.path, &self.log_file_header[0])?;
             let file = OpenOptions::new()
                 .write(true)
                 .append(self.append)
                 .truncate(!self.append)
-                .create(true)
+                .create(false)
                 .open(&self.path)?;
             let len = if self.append {
                 file.metadata()?.len()
@@ -276,18 +280,9 @@ impl RollingFileAppenderBuilder {
             fs::create_dir_all(parent)?;
         }
 
-        // open the log file immediately
-        // the main idea here is as soon as the log opens we get the lock
-        // and write our log header to the file. It's assumed the
-        // lock will allow us to do a fs::write() before log::*() are
-        // written.  Its also assumed get_writer() is initializing a
-        // new file.
-        // TODO cleanup later
+        // open the log file immediately, lock is grabbed (earlier) until
+        // we fall out of scope.
         appender.get_writer(&mut appender.writer.lock())?;
-
-        let a_path = &appender.path;
-        let lfh = appender.log_file_header[0].to_string().clone();
-        fs::write(a_path, lfh)?;
 
         Ok(appender)
 
