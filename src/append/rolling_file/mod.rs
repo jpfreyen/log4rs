@@ -203,8 +203,21 @@ impl RollingFileAppender {
 
     fn get_writer<'a>(&self, writer: &'a mut Option<LogWriter>) -> io::Result<&'a mut LogWriter> {
         if writer.is_none() {
-            // TODO, HACK: trial first, clean up next
-            fs::write(&self.path, &self.log_file_header[0])?;
+
+            for v in &self.log_file_header {
+                fs::write(&self.path, v)?;
+            }
+            /*
+            for i in 0..self.log_file_header.len() {
+                if i == 0 {
+                    fs::write(&self.path, &self.log_file_header[0])?;
+                } else {
+                    let mut append_log_file 
+                }
+            } */
+            
+
+
             let file = OpenOptions::new()
                 .write(true)
                 .append(self.append)
