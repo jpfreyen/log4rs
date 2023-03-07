@@ -207,16 +207,16 @@ impl RollingFileAppender {
             for v in &self.log_file_header {
                 fs::write(&self.path, v)?;
             }
-            /*
-            for i in 0..self.log_file_header.len() {
-                if i == 0 {
-                    fs::write(&self.path, &self.log_file_header[0])?;
-                } else {
-                    let mut append_log_file 
-                }
-            } */
-            
-
+    
+            // we want the first item written to create a new created file,
+            // then append the rest of the writes to the new
+            // log file.  It would just be easier if the rust community
+            // made a fs::append() alias like fs::write().
+            fs::write(&self.path, &self.log_file_header[0])?;
+            let mut append_to_logheader = OpenOptions::new().append(true).open(&self.path)?;
+            for i in 1..self.log_file_header.len() {
+                append_to_logheader.write_all(self.log_file_header[i].as_bytes())?;
+            }
 
             let file = OpenOptions::new()
                 .write(true)
